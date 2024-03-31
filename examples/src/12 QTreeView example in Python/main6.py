@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt, QAbstractItemModel, QModelIndex
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+
 class TreeNode:
     def __init__(self, name, data=None, parent=None):
         self.name = name
@@ -31,17 +32,18 @@ class TreeNode:
     def columnCount(self):
         return 2
 
+
 class LasTreeModel(QAbstractItemModel):
     def __init__(self, lasfiles, parent=None):
         super(LasTreeModel, self).__init__(parent)
         self.rootNode = TreeNode("Projects")
         for lasfile in lasfiles:
-            projectNode = TreeNode(lasfile['project'], parent=self.rootNode)
+            projectNode = TreeNode(lasfile["project"], parent=self.rootNode)
             self.rootNode.appendChild(projectNode)
-            for well in lasfile['wells']:
-                wellNode = TreeNode(well['name'], parent=projectNode)
+            for well in lasfile["wells"]:
+                wellNode = TreeNode(well["name"], parent=projectNode)
                 projectNode.appendChild(wellNode)
-                for curve in well['curves']:
+                for curve in well["curves"]:
                     curveNode = TreeNode(curve, parent=wellNode)
                     wellNode.appendChild(curveNode)
 
@@ -93,37 +95,40 @@ class LasTreeModel(QAbstractItemModel):
             return ["Name", "Data"][section]
         return None
 
+
 class PlotCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         super(PlotCanvas, self).__init__(self.fig)
         self.setParent(parent)
-    
+
     def plot_curves(self, curves_to_plot):
         # Clear the figure for fresh plots
         self.fig.clear()
 
         # Number of curves
         n_curves = len(curves_to_plot)
-        
+
         # Create subplots that share the y-axis (depth)
         # Adjust 'width_ratios' if needed to give more space to certain curves
-        gs = self.fig.add_gridspec(1, n_curves, wspace=0, hspace=0, width_ratios=[1]*n_curves)
+        gs = self.fig.add_gridspec(
+            1, n_curves, wspace=0, hspace=0, width_ratios=[1] * n_curves
+        )
         shared_ax = None
-        las_data = lasio.read(r'/Users/tigerhu/Downloads/LAS Files/example.las')
-        
+        las_data = lasio.read(r"/Users/tigerhu/Downloads/LAS Files/example.las")
+
         for i, curve_name in enumerate(curves_to_plot):
             if i == 0:
                 ax = self.fig.add_subplot(gs[0, i])
                 shared_ax = ax
             else:
                 ax = self.fig.add_subplot(gs[0, i], sharey=shared_ax)
-            
+
             data = las_data[curve_name]
             depth = las_data.curves.DEPT.data
             max_depth = depth.max()
             min_depth = depth.min()
-            ax.set_ylim(min_depth,max_depth)
+            ax.set_ylim(min_depth, max_depth)
 
             ax.plot(data, depth)
             ax.set_title(curve_name)
@@ -132,12 +137,13 @@ class PlotCanvas(FigureCanvas):
             # Hide y labels and ticks for subplots that are not the first one
             if i > 0:
                 ax.tick_params(labelleft=False, left=False)
-            
+
             # Optionally, rotate x-axis labels if they overlap
-            ax.tick_params(axis='x', labelrotation=45)
+            ax.tick_params(axis="x", labelrotation=45)
 
         self.fig.tight_layout()  # Adjust layout to make room for all subplots
         self.draw()
+
 
 class LasViewer(QWidget):
     def __init__(self, lasfile, parent=None):
@@ -165,15 +171,25 @@ class LasViewer(QWidget):
 
     def parseLasData(self, las_data):
         # Adjust according to the structure of your LAS files
-        project_name = las_data.well.WELL.value  # Example to get project name from the LAS file
-        wells = [{
-            'name': project_name,  # Assuming single well per LAS file for simplicity
-            'curves': [curve.mnemonic for curve in las_data.curves if curve.mnemonic not in ['DEPTH','DEPT']]
-        }]
-        return [{
-            'project': project_name,  # Use the well name as the project name for simplicity
-            'wells': wells
-        }]
+        project_name = (
+            las_data.well.WELL.value
+        )  # Example to get project name from the LAS file
+        wells = [
+            {
+                "name": project_name,  # Assuming single well per LAS file for simplicity
+                "curves": [
+                    curve.mnemonic
+                    for curve in las_data.curves
+                    if curve.mnemonic not in ["DEPTH", "DEPT"]
+                ],
+            }
+        ]
+        return [
+            {
+                "project": project_name,  # Use the well name as the project name for simplicity
+                "wells": wells,
+            }
+        ]
 
     def onSelectionChanged(self):
         indexes = self.treeView.selectionModel().selectedIndexes()
@@ -188,13 +204,15 @@ class LasViewer(QWidget):
         if curves_to_plot:
             self.plotCanvas.plot_curves(curves_to_plot)
 
+
 def main():
     app = QApplication(sys.argv)
-    lasfile_path = r'/Users/tigerhu/Downloads/LAS Files/example.las'  # Corrected path to the uploaded LAS file
+    lasfile_path = r"/Users/tigerhu/Downloads/LAS Files/example.las"  # Corrected path to the uploaded LAS file
     viewer = LasViewer(lasfile_path)
     viewer.resize(800, 600)
     viewer.show()
     sys.exit(app.exec())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
